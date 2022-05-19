@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Slider
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
@@ -84,8 +85,7 @@ fun TopHeader(totalPerPers: Double = 0.0) {
 fun MainContent() {
 
     val splitBy = remember { mutableStateOf(1) }
-    val totalTipAmt = remember { mutableStateOf(0.0) }
-    val totalPerPerson = remember { mutableStateOf(0.0) }
+
 
 
     Surface(
@@ -117,6 +117,11 @@ fun InputPriceField(
     onValChange: (String) -> Unit = {},
 ) {
 
+    val totalTipAmt = remember { mutableStateOf(0.0) }
+    val totalPerPerson = remember { mutableStateOf(0.0) }
+    var sliderPosition by remember { mutableStateOf(0f) }
+    val tipPercentage = (sliderPosition * 100).toInt()
+
     // What did number user enter.
     val totalNumber = remember { mutableStateOf("") }
 
@@ -135,14 +140,13 @@ fun InputPriceField(
             keyboardController?.hide() //need to use @ExperimentalComposeUiApi
         },
     )
-    val totalPerPerson = remember {
-        mutableStateOf(0.0)
-    }
 
     // show a Split section if enter number
-    if (valid) {
-        Split(splitByState, totalNumber, totalPerPerson)
-    }
+//    if (valid) {
+        Split(splitByState, totalNumber, totalPerPerson,tipPercentage)
+        Tip(splitByState,totalTipAmt,totalNumber,totalPerPerson,tipPercentage,sliderPosition)
+
+//    }
 }
 
 @Composable
@@ -150,10 +154,8 @@ fun Split(
           splitByState: MutableState<Int>,
           totalNumber: MutableState<String>,
           totalPerPersonState: MutableState<Double>,
+          tipPercentage : Int,
           range: IntRange = 1..100,) {
-
-    var sliderPosition by remember { mutableStateOf(0f) }
-    val tipPercentage = (sliderPosition * 100).toInt()
 
 
         Row(modifier = Modifier.padding(3.dp), horizontalArrangement = Arrangement.Start) {
@@ -193,6 +195,57 @@ fun Split(
 
 }
 
+
+
+@Composable
+fun Tip (splitByState: MutableState<Int>,
+         tipAmountState: MutableState<Double>,
+         totalNumber: MutableState<String>,
+         totalPerPersonState: MutableState<Double>,
+         tipPercentage : Int,
+         sliderPosition: Float) {
+
+    //Tip Row
+    Row(modifier = Modifier
+        .padding(horizontal = 3.dp)
+        .padding(vertical = 12.dp),
+        horizontalArrangement = Arrangement.End) {
+        Text(text = "Tip",
+            modifier = Modifier.align(alignment = Alignment.CenterVertically))
+
+        Spacer(modifier = Modifier.width(200.dp))
+
+        Text(text = "$${tipAmountState.value}",
+            modifier = Modifier.align(alignment = Alignment.CenterVertically))
+
+    }
+    Column(verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally) {
+
+        Text(text = "$tipPercentage %")
+        Spacer(modifier = Modifier.height(14.dp))
+        Slider(value = sliderPosition,
+            onValueChange ={ newVal ->
+                sliderPosition = newVal
+                tipAmountState.value =
+                    calculateTotalTip(totalBill = totalNumber.value.toDouble(),
+                        tipPercent = tipPercentage)
+
+                totalPerPersonState.value =
+                    calculateTotalPerPerson(totalBill = totalNumber.value.toDouble(),
+                        splitBy = splitByState.value,
+                        tipPercent = tipPercentage)
+
+            },
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp),
+            steps = 5,
+            onValueChangeFinished = {
+                //This is were the calculations should happen!
+            })
+
+    }
+
+}
 
 fun calculateTotalTip(totalBill: Double, tipPercent: Int): Double {
 
