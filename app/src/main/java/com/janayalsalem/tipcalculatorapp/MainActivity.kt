@@ -26,14 +26,14 @@ import androidx.compose.ui.unit.dp
 import com.janayalsalem.tipcalculatorapp.components.InputField
 import com.janayalsalem.tipcalculatorapp.ui.theme.TipCalculatorAppTheme
 
-//@ExperimentalComposeUiApi
+@ExperimentalComposeUiApi
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             AppTheme{
                 TopHeader()
-//                MainContent() // need a @ExperimentalComposeUiApi
+                MainContent() // need to use @ExperimentalComposeUiApi
             }
         }
     }
@@ -51,7 +51,7 @@ fun AppTheme(content: @Composable () -> Unit) {
     }
 }
 
-
+@ExperimentalComposeUiApi
 @Composable
 fun TopHeader(totalPerPers: Double = 0.0) {
 
@@ -69,26 +69,16 @@ fun TopHeader(totalPerPers: Double = 0.0) {
             verticalArrangement = Arrangement.Center) {
 
             Text(text = "Total Per Person", style = MaterialTheme.typography.subtitle1)
-            Text(text = "\$$totalFormat", style = MaterialTheme.typography.h4)
+            Text(text = "\$$totalFormat}", style = MaterialTheme.typography.h4)
 
         } // End Column
 
     } // End Surface
 
 }
-
 @ExperimentalComposeUiApi
 @Composable
 fun MainContent() {
-
-    // What did number user enter.
-    val totalNumber = remember { mutableStateOf("") }
-
-    // LocalTextInputService.
-    val keyboardController = LocalSoftwareKeyboardController.current // need a @ExperimentalComposeUiApi
-
-    // To check totalNumber isNotEmpty
-    val valid = remember(totalNumber.value) { totalNumber.value.trim().isNotEmpty() }
 
     Surface(modifier = Modifier
         .padding(2.dp)
@@ -101,21 +91,41 @@ fun MainContent() {
             verticalArrangement = Arrangement.Top,
             horizontalAlignment = Alignment.Start) {
 
+          InputPriceField(){it}
+
+}
+    }
+}
+
+@ExperimentalComposeUiApi
+@Composable
+fun InputPriceField(modifier: Modifier = Modifier, onValChange:(String)-> Unit = {}) {
+
+    // What did number user enter.
+    val totalNumber = remember { mutableStateOf("") }
+
+    // LocalTextInputService.
+    val keyboardController = LocalSoftwareKeyboardController.current // need to use @ExperimentalComposeUiApi
+
+    // To check totalNumber isNotEmpty
+    val valid = remember(totalNumber.value) { totalNumber.value.trim().isNotEmpty() }
+
             InputField(
                 valueState = totalNumber, labelId = "Enter Number",
                 enabled = true,
                 onAction = KeyboardActions {
                     //The submit button is disabled unless the inputs are valid. wrap this in if statement to accomplish the same.
                     if (!valid) return@KeyboardActions
-//                    onValChange(totalNumber.value.trim())
+                    onValChange(totalNumber.value.trim()) // get price
                     //totalBill.value = ""
-                    keyboardController?.hide() //(to use this we need to use @ExperimentalComposeUiApi
+                    keyboardController?.hide() //need to use @ExperimentalComposeUiApi
                 },
             )
 
+
 }
-    }
-}
+
+
 
 
 @ExperimentalComposeUiApi
