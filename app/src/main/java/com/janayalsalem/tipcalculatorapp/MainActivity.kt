@@ -1,6 +1,7 @@
 package com.janayalsalem.tipcalculatorapp
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.BorderStroke
@@ -28,6 +29,9 @@ import androidx.compose.ui.unit.dp
 import com.janayalsalem.tipcalculatorapp.components.InputField
 import com.janayalsalem.tipcalculatorapp.components.RoundIconButton
 import com.janayalsalem.tipcalculatorapp.ui.theme.TipCalculatorAppTheme
+import androidx.compose.runtime.saveable.rememberSaveable
+
+
 
 @ExperimentalComposeUiApi
 class MainActivity : ComponentActivity() {
@@ -85,138 +89,130 @@ fun TopHeader(totalPerPers: Double = 0.0) {
 fun MainContent() {
 
     val splitBy = remember { mutableStateOf(1) }
+    val totalTipAmt = remember { mutableStateOf(0.0) }
+    val totalPerPerson = remember { mutableStateOf(0.0) }
+
+    BillForm(splitByState = splitBy, tipAmountState = totalTipAmt, totalPerPersonState = totalPerPerson) {
+
+    }
+}
 
 
+@ExperimentalComposeUiApi
+@Composable
+fun BillForm(splitByState: MutableState<Int>,
+             tipAmountState: MutableState<Double>,
+             totalPerPersonState: MutableState<Double>,
+             modifier: Modifier = Modifier,
+             onValChange: (String) -> Unit = {},
+) {
 
-    Surface(
-        modifier = Modifier
-            .padding(2.dp)
-            .fillMaxWidth(),
+    var sliderPosition = remember { mutableStateOf(0f) }
+    val tipPercentage = (sliderPosition.value * 100).toInt()
+
+    val totalBill = rememberSaveable { mutableStateOf("") } //or just remember {}
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val valid = remember(totalBill.value) {
+        totalBill.value.trim().isNotEmpty()
+    }
+
+
+    Surface(modifier = Modifier
+        .padding(2.dp)
+        .fillMaxWidth(),
         shape = CircleShape.copy(all = CornerSize(8.dp)),
-        border = BorderStroke(width = 1.dp, color = Color.LightGray)
-    ) {
+        border = BorderStroke(width = 1.dp, color = Color.LightGray)) {
 
         Column(
             modifier = Modifier.padding(6.dp),
             verticalArrangement = Arrangement.Top,
             horizontalAlignment = Alignment.Start
         ) {
-            TopHeader()
-            InputPriceField(splitByState = splitBy)
+
+            TopHeader(totalPerPers = totalPerPersonState.value)
+
+            InputField(
+                valueState = totalBill, labelId = "Enter Bill",
+                enabled = true,
+                onAction = KeyboardActions {
+                    //The submit button is disabled unless the inputs are valid. wrap this in if statement to accomplish the same.
+                    if (!valid) return@KeyboardActions
+                    onValChange(totalBill.value.trim())
+                    keyboardController?.hide() //(to use this we need to use @ExperimentalComposeUiApi
+                },
+            )
+
+            if (valid) {
+                Split(splitByState,totalPerPersonState,totalBill,tipPercentage)
+                Tip(splitByState,totalPerPersonState,tipAmountState,sliderPosition,totalBill,tipPercentage)
+            }//end isValid
+
+
+        }
+    }}
+
+@Composable
+fun Split (splitByState: MutableState<Int>,
+            totalPerPersonState: MutableState<Double>,
+            totalBill: MutableState<String>,
+            tipPercentage: Int,
+            range: IntRange = 1..100) {
+
+    Row(modifier = Modifier.padding(3.dp), horizontalArrangement = Arrangement.Start) {
+        Text(text = "Split",
+            modifier = Modifier.align(alignment = Alignment.CenterVertically))
+        Spacer(modifier = Modifier.width(120.dp))
+
+        Row(modifier = Modifier.padding(horizontal = 3.dp),
+            horizontalArrangement = Arrangement.End) {
+
+            RoundIconButton(imageVector = Icons.Default.Remove, onClick = {
+                // if splitByState > 1 -> minus one on user clicked
+                splitByState.value =
+                    if (splitByState.value > 1) splitByState.value - 1 else 1
+                totalPerPersonState.value =
+                    calculateTotalPerPerson(totalBill = totalBill.value.toDouble(),
+                        splitBy = splitByState.value,
+                        tipPercent = tipPercentage)
+            })
+
+            Text(text = "${splitByState.value}",
+                Modifier
+                    .align(alignment = Alignment.CenterVertically)
+                    .padding(start = 9.dp, end = 9.dp))
+            RoundIconButton(imageVector = Icons.Default.Add, onClick = {
+               // add one on user clicked
+                if (splitByState.value < range.last) {
+                    splitByState.value = splitByState.value + 1
+
+                    totalPerPersonState.value =
+                        calculateTotalPerPerson(totalBill = totalBill.value.toDouble(),
+                            splitBy = splitByState.value,
+                            tipPercent = tipPercentage)
+                }
+            })
 
         }
     }
 
 }
 
-@ExperimentalComposeUiApi
-@Composable
-fun InputPriceField(
-    modifier: Modifier = Modifier,
-    splitByState: MutableState<Int>,
-    onValChange: (String) -> Unit = {},
-) {
-
-    val totalTipAmt = remember { mutableStateOf(0.0) }
-    val totalPerPerson = remember { mutableStateOf(0.0) }
-    var sliderPosition by remember { mutableStateOf(0f) }
-    val tipPercentage = (sliderPosition * 100).toInt()
-
-    // What did number user enter.
-    val totalNumber = remember { mutableStateOf("") }
-
-    // LocalTextInputService.
-    val keyboardController =
-        LocalSoftwareKeyboardController.current // need to use @ExperimentalComposeUiApi
-
-    // To check totalNumber isNotEmpty
-    val valid = remember(totalNumber.value) { totalNumber.value.trim().isNotEmpty() }
-
-    InputField(valueState = totalNumber, labelId = "Enter Number", enabled = true, onAction = KeyboardActions {
-            //The submit button is disabled unless the inputs are valid. wrap this in if statement to accomplish the same.
-            if (!valid) return@KeyboardActions
-            onValChange(totalNumber.value.trim()) // get price
-            //totalBill.value = ""
-            keyboardController?.hide() //need to use @ExperimentalComposeUiApi
-        },
-    )
-
-    // show a Split section if enter number
-//    if (valid) {
-        Split(splitByState, totalNumber, totalPerPerson,tipPercentage)
-        Tip(splitByState,totalTipAmt,totalNumber,totalPerPerson,tipPercentage,sliderPosition)
-
-//    }
-}
-
-@Composable
-fun Split(
-          splitByState: MutableState<Int>,
-          totalNumber: MutableState<String>,
-          totalPerPersonState: MutableState<Double>,
-          tipPercentage : Int,
-          range: IntRange = 1..100,) {
-
-
-        Row(modifier = Modifier.padding(3.dp), horizontalArrangement = Arrangement.Start) {
-            Text(
-                text = "Split",
-                modifier = Modifier.align(alignment = Alignment.CenterVertically)
-            )
-            Spacer(modifier = Modifier.width(120.dp))
-
-            Row(
-                modifier = Modifier.padding(horizontal = 3.dp),
-                horizontalArrangement = Arrangement.End
-            ) {
-
-                RoundIconButton(imageVector = Icons.Default.Remove, onClick = {
-                    splitByState.value =
-                        if (splitByState.value > 1) splitByState.value - 1 else 1
-                    totalPerPersonState.value = calculateTotalPerPerson(totalBill = totalNumber.value.toDouble(), splitBy = splitByState.value, tipPercent = tipPercentage)
-
-                })
-                Text(text = "${splitByState.value}",
-                    Modifier
-                        .align(alignment = Alignment.CenterVertically)
-                        .padding(start = 9.dp, end = 9.dp))
-                RoundIconButton(imageVector = Icons.Default.Add, onClick = {
-                    if (splitByState.value < range.last) {
-                        splitByState.value = splitByState.value + 1
-
-                        totalPerPersonState.value =
-                            calculateTotalPerPerson(totalBill = totalNumber.value.toDouble(),
-                                splitBy = splitByState.value,
-                                tipPercent = tipPercentage)
-                    }
-                })
-            }
-        }
-
-}
-
-
 
 @Composable
 fun Tip (splitByState: MutableState<Int>,
-         tipAmountState: MutableState<Double>,
-         totalNumber: MutableState<String>,
          totalPerPersonState: MutableState<Double>,
-         tipPercentage : Int,
-         sliderPosition: Float) {
+         tipAmountState: MutableState<Double>,
+         sliderPosition: MutableState<Float>,
+         totalBill: MutableState<String>, tipPercentage: Int,) {
 
-    //Tip Row
     Row(modifier = Modifier
         .padding(horizontal = 3.dp)
         .padding(vertical = 12.dp),
         horizontalArrangement = Arrangement.End) {
-        Text(text = "Tip",
-            modifier = Modifier.align(alignment = Alignment.CenterVertically))
-
+        // Tip section
+        Text(text = "Tip", modifier = Modifier.align(alignment = Alignment.CenterVertically))
         Spacer(modifier = Modifier.width(200.dp))
-
-        Text(text = "$${tipAmountState.value}",
-            modifier = Modifier.align(alignment = Alignment.CenterVertically))
+        Text(text = "$${tipAmountState.value}", modifier = Modifier.align(alignment = Alignment.CenterVertically))
 
     }
     Column(verticalArrangement = Arrangement.Center,
@@ -224,28 +220,29 @@ fun Tip (splitByState: MutableState<Int>,
 
         Text(text = "$tipPercentage %")
         Spacer(modifier = Modifier.height(14.dp))
-        Slider(value = sliderPosition,
-            onValueChange ={ newVal ->
-                sliderPosition = newVal
+
+        // Slider( value: Float,onValueChange: (Float) → Unit, valueRange: ClosedFloatingPointRange<Float>, steps: Int, onValueChangeFinished: (() → Unit)?,colors: SliderColors ): Unit
+        Slider(value = sliderPosition.value,
+            onValueChange = { newVal ->
+                sliderPosition.value = newVal
                 tipAmountState.value =
-                    calculateTotalTip(totalBill = totalNumber.value.toDouble(),
+                    calculateTotalTip(totalBill = totalBill.value.toDouble(),
                         tipPercent = tipPercentage)
 
                 totalPerPersonState.value =
-                    calculateTotalPerPerson(totalBill = totalNumber.value.toDouble(),
+                    calculateTotalPerPerson(totalBill = totalBill.value.toDouble(),
                         splitBy = splitByState.value,
                         tipPercent = tipPercentage)
+                Log.d("Slider",
+                    "Total Bill-->: ${"%.2f".format(totalPerPersonState.value)}")
 
             },
-            modifier = Modifier.padding(start = 16.dp, end = 16.dp),
-            steps = 5,
-            onValueChangeFinished = {
-                //This is were the calculations should happen!
-            })
+            modifier = Modifier.padding(start = 16.dp, end = 16.dp), steps = 10, onValueChangeFinished = {})
 
     }
 
 }
+
 
 fun calculateTotalTip(totalBill: Double, tipPercent: Int): Double {
 
@@ -254,14 +251,4 @@ fun calculateTotalTip(totalBill: Double, tipPercent: Int): Double {
 fun calculateTotalPerPerson(totalBill: Double, splitBy: Int, tipPercent: Int): Double {
     val bill = calculateTotalTip(totalBill, tipPercent = tipPercent) + totalBill
     return (bill/splitBy)
-}
-
-
-@ExperimentalComposeUiApi
-@Preview(showBackground = true)
-@Composable
-fun DefaultPreview() {
-    AppTheme {
-        MainContent()
-    }
 }
