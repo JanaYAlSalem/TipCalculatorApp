@@ -3,7 +3,7 @@
 <br /><br />
 <ul>
 <li><h3> This is app by using jetpack compose</h3> </li>
-<h6> for  calculate the bill with divide per person with tip.</h6>
+<h6> For  calculate the bill with divide per person with tip.</h6>
 </ul>
 
   <br>
